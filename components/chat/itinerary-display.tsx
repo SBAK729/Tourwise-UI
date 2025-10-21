@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MapPin, DollarSign, Clock, Mail } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
 
 interface Activity {
   time: string
@@ -46,37 +47,57 @@ export default function ItineraryDisplay({
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
 
+  const {email} = useAuth()
+
+  // ✅ Handle Save to Email
   const handleSaveToEmail = async () => {
     setIsSaving(true)
     setSaveMessage(null)
 
     try {
-      const response = await fetch("/api/save-itinerary", {
+      // You can replace this with your app's actual user email source
+
+      const userEmail = email 
+      console.log(email)
+
+      if (!userEmail) {
+        setSaveMessage("Email is required to send itinerary.")
+        setIsSaving(false)
+        return
+      }
+
+      // Send itinerary + user email to backend → n8n webhook
+      const response = await fetch("https://tourwise-xnrb.onrender.com/auth/send-itinerary", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
         },
         body: JSON.stringify({
-          itinerary: itineraryData,
+          email: userEmail,
+          result: itineraryData?.result,
           destination,
           estimatedCost,
         }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to save itinerary")
-      }
+      if (!response.ok) throw new Error("Failed to send itinerary")
 
-      setSaveMessage("Itinerary saved to your email successfully!")
+      setSaveMessage("Itinerary sent to your email successfully!")
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (error) {
       console.error("Error saving itinerary:", error)
-      setSaveMessage("Failed to save itinerary. Please try again.")
+      setSaveMessage("Failed to send itinerary. Please try again.")
     } finally {
       setIsSaving(false)
     }
   }
+
+  // ✅ Limit number of displayed days
+  const displayDays = (() => {
+    const maxDays = itineraryData?.user_intent?.duration_days || days.length
+    return days.slice(0, maxDays)
+  })()
 
   return (
     <div className="w-full max-w-4xl space-y-6">
@@ -85,13 +106,13 @@ export default function ItineraryDisplay({
         <MapPin className="text-primary" size={24} />
         <div>
           <h2 className="text-2xl font-bold text-foreground">{destination} Itinerary</h2>
-          <p className="text-sm text-muted-foreground">{days.length} days planned</p>
+          <p className="text-sm text-muted-foreground">{displayDays.length} days planned</p>
         </div>
       </div>
 
       {/* Days and Activities */}
       <div className="space-y-4">
-        {days.map((day, dayIndex) => (
+        {displayDays.map((day, dayIndex) => (
           <Card key={dayIndex} className="p-4 border border-border">
             <h3 className="font-semibold text-foreground mb-4">{day.date}</h3>
             <div className="space-y-3">
@@ -172,6 +193,7 @@ export default function ItineraryDisplay({
         </Card>
       )}
 
+      {/* Save to Email Button */}
       <div className="flex flex-col gap-2">
         <Button
           onClick={handleSaveToEmail}
@@ -183,7 +205,9 @@ export default function ItineraryDisplay({
         </Button>
         {saveMessage && (
           <p
-            className={`text-sm text-center ${saveMessage.includes("successfully") ? "text-green-600" : "text-red-600"}`}
+            className={`text-sm text-center ${
+              saveMessage.includes("successfully") ? "text-green-600" : "text-red-600"
+            }`}
           >
             {saveMessage}
           </p>

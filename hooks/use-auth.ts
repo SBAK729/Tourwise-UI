@@ -28,8 +28,11 @@ export function useAuth() {
     router.push("/")
   }, [router])
 
+  console.log("from use Auth", user)
+
   return {
     user: user || JSON.parse(localStorage.getItem("user") || "null"),
+    email: localStorage.getItem("email") || "",
     logout,
     loadUser,
   }

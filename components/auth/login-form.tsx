@@ -27,6 +27,10 @@ export default function LoginForm({ onLoginSuccess, onToggleForm }: LoginFormPro
       const { access_token } = await apiClient.login(email, password)
 
       localStorage.setItem("authToken", access_token)
+      localStorage.setItem("email",email)
+
+      console.log("email from user login", localStorage.getItem("email"))
+
 
       onLoginSuccess()
     } catch (err: any) {
